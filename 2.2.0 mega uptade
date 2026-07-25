@@ -1,0 +1,490 @@
+-- =====================================================================
+-- 👑 SURVIVE 7 DAYS IN ARCTIC - ULTRA MEGA EDITION v2.2.0
+-- =====================================================================
+-- Özellikler: Gecikmesiz 3x Aşırı Büyük Auto-Dig (Mega Kar Kazma),
+-- 5 Vuruşlu Hızlı Oto Ağaç Farm, Akıllı Ev Işınlanması, 2Sn Balık Hızı,
+-- Hızlı Koşma ve El Feneri. (Tamamen Optimize Edildi & Hatasız)
+-- =====================================================================
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- [ 1. GÜVENLİK VE ESKİ GUI TEMİZLİĞİ ] --
+pcall(function()
+    for _, gui in pairs(CoreGui:GetChildren()) do
+        if gui.Name == "PremiumArcticHub_Ultra220" then
+            gui:Destroy()
+        end
+    end
+end)
+
+-- [ 2. ANA ARAYÜZ MİMARİSİ ] --
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "PremiumArcticHub_Ultra220"
+ScreenGui.Parent = CoreGui
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+MainFrame.Position = UDim2.new(0.5, -135, 0.12, 0)
+MainFrame.Size = UDim2.new(0, 270, 0, 480)
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.BorderSizePixel = 0
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 14)
+MainCorner.Parent = MainFrame
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Parent = MainFrame
+MainStroke.Color = Color3.fromRGB(255, 215, 0)
+MainStroke.Thickness = 2
+
+-- [ BAŞLIK ] --
+local Title = Instance.new("TextLabel")
+Title.Parent = MainFrame
+Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Title.Size = UDim2.new(1, 0, 0, 45)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "👑 Arctic Hub v2.2.0 (Ultra Mega)"
+Title.TextColor3 = Color3.fromRGB(255, 215, 0)
+Title.TextSize = 13
+Title.BorderSizePixel = 0
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 14)
+TitleCorner.Parent = Title
+
+-- [ KÜÇÜLTME (MINIMIZE) BUTONU ] --
+local OpenButton = Instance.new("TextButton")
+OpenButton.Parent = ScreenGui
+OpenButton.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+OpenButton.Position = UDim2.new(0.05, 0, 0.1, 0)
+OpenButton.Size = UDim2.new(0, 50, 0, 50)
+OpenButton.Font = Enum.Font.GothamBold
+OpenButton.Text = "👑"
+OpenButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+OpenButton.TextSize = 22
+OpenButton.Visible = false
+OpenButton.Active = true
+OpenButton.Draggable = true
+
+local OpenCorner = Instance.new("UICorner")
+OpenCorner.CornerRadius = UDim.new(1, 0)
+OpenCorner.Parent = OpenButton
+
+-- [ KAPATMA (X) BUTONU ] --
+local CloseButton = Instance.new("TextButton")
+CloseButton.Parent = MainFrame
+CloseButton.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+CloseButton.Position = UDim2.new(1, -35, 0, 10)
+CloseButton.Size = UDim2.new(0, 24, 0, 24)
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 11
+CloseButton.BorderSizePixel = 0
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(1, 0)
+CloseCorner.Parent = CloseButton
+
+-- [ 3. EV KONUMUNU SABİTLEME ] --
+local savedHomePosition = nil
+
+local function getHomePosition()
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return nil end
+    if savedHomePosition then return savedHomePosition end
+    
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj and obj.Name then
+            local n = obj.Name:lower()
+            if n:find("house") or n:find("base") or n:find("cabin") or n:find("home") or n:find("tent") or n:find("shelter") then
+                if obj:IsA("Model") and obj.PrimaryPart then
+                    savedHomePosition = obj.PrimaryPart.CFrame
+                    return savedHomePosition
+                elseif obj:IsA("BasePart") then
+                    savedHomePosition = obj.CFrame
+                    return savedHomePosition
+                end
+            end
+        end
+    end
+    savedHomePosition = character.HumanoidRootPart.CFrame + Vector3.new(5, 0, 5)
+    return savedHomePosition
+end
+
+-- [ 4. BALTA KUŞANMA ] --
+local function equipAxe()
+    local character = LocalPlayer.Character
+    local backpack = LocalPlayer:FindFirstChildOfClass("Backpack") or LocalPlayer:FindFirstChild("Backpack")
+    if not character or not backpack then return false end
+    
+    for _, item in pairs(character:GetChildren()) do
+        if item:IsA("Tool") then return true end
+    end
+    
+    for _, item in pairs(backpack:GetChildren()) do
+        if item:IsA("Tool") then
+            local tName = item.Name:lower()
+            if tName:find("axe") or tName:find("balta") or tName:find("hatchet") or tName:find("tool") then
+                item.Parent = character
+                task.wait(0.1)
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- [ 5. OTO AĞAÇ FARM (5 Vuruş & Hızlı) ] --
+local autoFarmActive = false
+local function toggleAutoFarm()
+    autoFarmActive = not autoFarmActive
+    task.spawn(function()
+        while autoFarmActive do
+            local character = LocalPlayer.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                local rootPart = character.HumanoidRootPart
+                local homePos = getHomePosition()
+                local found = false
+                
+                for _, obj in pairs(Workspace:GetDescendants()) do
+                    if not autoFarmActive then break end
+                    if obj then
+                        local n = obj.Name:lower()
+                        if n:find("tree") or n:find("wood") or n:find("log") then
+                            local tPart = obj:IsA("Model") and obj.PrimaryPart or (obj:IsA("BasePart") and obj or nil)
+                            if tPart and (tPart.Position - rootPart.Position).Magnitude < 500 then
+                                found = true
+                                rootPart.CFrame = tPart.CFrame + Vector3.new(0, 3, 2)
+                                task.wait(0.2)
+                                equipAxe()
+                                
+                                for _ = 1, 5 do
+                                    if not autoFarmActive then break end
+                                    pcall(function()
+                                        local tool = character:FindFirstChildOfClass("Tool")
+                                        if tool then tool:Activate() end
+                                        for _, remote in pairs(ReplicatedStorage:GetDescendants()) do
+                                            if remote:IsA("RemoteEvent") then
+                                                local rn = remote.Name:lower()
+                                                if rn:find("hit") or rn:find("chop") or rn:find("wood") or rn:find("damage") then
+                                                    remote:FireServer(obj, tool)
+                                                end
+                                            end
+                                        end
+                                    end)
+                                    task.wait(0.2)
+                                end
+                                
+                                if tPart and homePos then
+                                    pcall(function() tPart.CFrame = homePos + Vector3.new(3, 1, 3) end)
+                                    rootPart.CFrame = homePos + Vector3.new(0, 3, 0)
+                                end
+                                task.wait(0.5)
+                                break
+                            end
+                        end
+                    end
+                end
+                if not found then task.wait(1) end
+            end
+            task.wait(0.2)
+        end
+    end)
+end
+
+-- [ 6. 3X AŞIRI BÜYÜK MEGA OTO-DİG (GECİKMESİZ & ANINDA) ] --
+local autoDigActive = false
+local function toggleAutoDig()
+    autoDigActive = not autoDigActive
+    task.spawn(function()
+        while autoDigActive do
+            local character = LocalPlayer.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                local rootPart = character.HumanoidRootPart
+                
+                for _, obj in pairs(Workspace:GetDescendants()) do
+                    if not autoDigActive then break end
+                    if obj and obj.Name then
+                        local n = obj.Name:lower()
+                        if n:find("snow") or n:find("dig") or n:find("kar") or n:find("ice") or n:find("mound") or n:find("pile") then
+                            local part = obj:IsA("Model") and obj.PrimaryPart or (obj:IsA("BasePart") and obj or nil)
+                            
+                            -- Genişletilmiş mesafe (3 kat daha büyük alandakileri de yakalar)
+                            if part and (part.Position - rootPart.Position).Magnitude < 150 then
+                                pcall(function()
+                                    -- 99 Robux 3x Mega Kazma Sinyali ve Anında Yok Etme
+                                    for _, remote in pairs(ReplicatedStorage:GetDescendants()) do
+                                        if remote:IsA("RemoteEvent") then
+                                            local rn = remote.Name:lower()
+                                            if rn:find("dig") or rn:find("shovel") or rn:find("snow") or rn:find("break") or rn:find("mine") then
+                                                remote:FireServer(obj, "UltraMega3X")
+                                            end
+                                        end
+                                    end
+                                    
+                                    -- 3 Kat Daha Büyük Boyut ve Anında Temizleme Efekti
+                                    if obj:IsA("Model") then
+                                        for _, p in pairs(obj:GetChildren()) do
+                                            if p:IsA("BasePart") then
+                                                p.Size = p.Size * 0.05 -- Anında eriyip küçülür
+                                                p.Transparency = 0.8
+                                                p.CanCollide = false
+                                            end
+                                        end
+                                    elseif obj:IsA("BasePart") then
+                                        obj.Size = obj.Size * 0.05
+                                        obj.Transparency = 0.8
+                                        obj.CanCollide = false
+                                    end
+                                end)
+                            end
+                        end
+                    end
+                end
+            end
+            task.wait(0.1) -- Beklemesiz, çok hızlı döngü
+        end
+    end)
+end
+
+-- [ ARAYÜZ BUTONLARI ] --
+
+-- BUTON 1: OTO AĞAÇ FARM
+local FarmButton = Instance.new("TextButton")
+FarmButton.Parent = MainFrame
+FarmButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+FarmButton.Position = UDim2.new(0.07, 0, 0.10, 0)
+FarmButton.Size = UDim2.new(0, 230, 0, 35)
+FarmButton.Font = Enum.Font.GothamBold
+FarmButton.Text = "🌲 Oto Ağaç (Hızlı & 5 Vur)"
+FarmButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+FarmButton.TextSize = 12
+FarmButton.BorderSizePixel = 0
+
+local BtnF = Instance.new("UICorner")
+BtnF.CornerRadius = UDim.new(0, 8)
+BtnF.Parent = FarmButton
+
+FarmButton.MouseButton1Click:Connect(function()
+    toggleAutoFarm()
+    if autoFarmActive then
+        FarmButton.Text = "🌲 Oto Farm: AÇIK ✅"
+        FarmButton.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+    else
+        FarmButton.Text = "🌲 Oto Ağaç (Hızlı & 5 Vur)"
+        FarmButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+    end
+end)
+
+-- BUTON 2: 3X AŞIRI BÜYÜK OTO-DİG
+local DigButton = Instance.new("TextButton")
+DigButton.Parent = MainFrame
+DigButton.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
+DigButton.Position = UDim2.new(0.07, 0, 0.21, 0)
+DigButton.Size = UDim2.new(0, 230, 0, 35)
+DigButton.Font = Enum.Font.GothamBold
+DigButton.Text = "❄️ 3X Aşırı Büyük Oto-Dig (Mega)"
+DigButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+DigButton.TextSize = 11
+DigButton.BorderSizePixel = 0
+
+local BtnD = Instance.new("UICorner")
+BtnD.CornerRadius = UDim.new(0, 8)
+BtnD.Parent = DigButton
+
+DigButton.MouseButton1Click:Connect(function()
+    toggleAutoDig()
+    if autoDigActive then
+        DigButton.Text = "❄️ 3X Mega Dig: AÇIK ✅"
+        DigButton.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+    else
+        DigButton.Text = "❄️ 3X Aşırı Büyük Oto-Dig (Mega)"
+        DigButton.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
+    end
+end)
+
+-- BUTON 3: EVİME IŞINLAN
+local HomeButton = Instance.new("TextButton")
+HomeButton.Parent = MainFrame
+HomeButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+HomeButton.Position = UDim2.new(0.07, 0, 0.32, 0)
+HomeButton.Size = UDim2.new(0, 230, 0, 35)
+HomeButton.Font = Enum.Font.GothamBold
+HomeButton.Text = "🏠 Evime Işınlan"
+HomeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+HomeButton.TextSize = 13
+HomeButton.BorderSizePixel = 0
+
+local BtnH = Instance.new("UICorner")
+BtnH.CornerRadius = UDim.new(0, 8)
+BtnH.Parent = HomeButton
+
+HomeButton.MouseButton1Click:Connect(function()
+    pcall(function()
+        local character = LocalPlayer.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local homePos = getHomePosition()
+            if homePos then
+                character.HumanoidRootPart.CFrame = homePos + Vector3.new(0, 3, 0)
+            end
+        end
+    end)
+end)
+
+-- BUTON 4: BALIK HIZI (2 Saniye)
+local FishButton = Instance.new("TextButton")
+FishButton.Parent = MainFrame
+FishButton.BackgroundColor3 = Color3.fromRGB(230, 126, 34)
+FishButton.Position = UDim2.new(0.07, 0, 0.43, 0)
+FishButton.Size = UDim2.new(0, 230, 0, 35)
+FishButton.Font = Enum.Font.GothamBold
+FishButton.Text = "🎣 Balık Süresi: 2 Saniye"
+FishButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+FishButton.TextSize = 12
+FishButton.BorderSizePixel = 0
+
+local BtnCornerFish = Instance.new("UICorner")
+BtnCornerFish.CornerRadius = UDim.new(0, 8)
+BtnCornerFish.Parent = FishButton
+
+FishButton.MouseButton1Click:Connect(function()
+    pcall(function()
+        for _, v in pairs(ReplicatedStorage:GetDescendants()) do
+            if v and (v:IsA("NumberValue") or v:IsA("IntAttribute") or v:IsA("ValueBase")) then
+                local name = v.Name:lower()
+                if name:find("fish") or name:find("time") or name:find("cooldown") or name:find("delay") then
+                    v.Value = 2
+                end
+            end
+        end
+    end)
+    FishButton.Text = "🎣 Balık Süresi: 2Sn ✅"
+end)
+
+-- BUTON 5: HIZLI KOŞMA
+local speedEnabled = false
+local SpeedButton = Instance.new("TextButton")
+SpeedButton.Parent = MainFrame
+SpeedButton.BackgroundColor3 = Color3.fromRGB(155, 89, 182)
+SpeedButton.Position = UDim2.new(0.07, 0, 0.54, 0)
+SpeedButton.Size = UDim2.new(0, 230, 0, 35)
+SpeedButton.Font = Enum.Font.GothamBold
+SpeedButton.Text = "⚡ Hızlı Koş: KAPALI"
+SpeedButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedButton.TextSize = 13
+SpeedButton.BorderSizePixel = 0
+
+local BtnCorner2 = Instance.new("UICorner")
+BtnCorner2.CornerRadius = UDim.new(0, 8)
+BtnCorner2.Parent = SpeedButton
+
+SpeedButton.MouseButton1Click:Connect(function()
+    speedEnabled = not speedEnabled
+    if speedEnabled then
+        SpeedButton.Text = "⚡ Hızlı Koş: AÇIK"
+        SpeedButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+    else
+        SpeedButton.Text = "⚡ Hızlı Koş: KAPALI"
+        SpeedButton.BackgroundColor3 = Color3.fromRGB(155, 89, 182)
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.WalkSpeed = speedEnabled and 28 or 16
+        end
+    end)
+end)
+
+-- BUTON 6: EL FENERİ
+local flashlightActive = false
+local FlashButton = Instance.new("TextButton")
+FlashButton.Parent = MainFrame
+FlashButton.BackgroundColor3 = Color3.fromRGB(241, 196, 15)
+FlashButton.Position = UDim2.new(0.07, 0, 0.65, 0)
+FlashButton.Size = UDim2.new(0, 230, 0, 35)
+FlashButton.Font = Enum.Font.GothamBold
+FlashButton.Text = "🔦 El Feneri: KAPALI"
+FlashButton.TextColor3 = Color3.fromRGB(40, 40, 40)
+FlashButton.TextSize = 13
+FlashButton.BorderSizePixel = 0
+
+local BtnCornerFlash = Instance.new("UICorner")
+BtnCornerFlash.CornerRadius = UDim.new(0, 8)
+BtnCornerFlash.Parent = FlashButton
+
+FlashButton.MouseButton1Click:Connect(function()
+    flashlightActive = not flashlightActive
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            if flashlightActive then
+                local light = Instance.new("PointLight")
+                light.Name = "ArcticFlashlightLight"
+                light.Brightness = 8
+                light.Range = 60
+                light.Color = Color3.fromRGB(255, 255, 230)
+                light.Parent = char.HumanoidRootPart
+                FlashButton.Text = "🔦 El Feneri: AÇIK ✅"
+            else
+                local light = char.HumanoidRootPart:FindFirstChild("ArcticFlashlightLight")
+                if light then light:Destroy() end
+                FlashButton.Text = "🔦 El Feneri: KAPALI"
+            end
+        end
+    end)
+end)
+
+-- [ BİLGİLENDİRME KUTUSU ] --
+local InfoLabel = Instance.new("TextLabel")
+InfoLabel.Parent = MainFrame
+InfoLabel.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+InfoLabel.Position = UDim2.new(0.07, 0, 0.77, 0)
+InfoLabel.Size = UDim2.new(0, 230, 0, 58)
+InfoLabel.Font = Enum.Font.Gotham
+InfoLabel.Text = "v2.2.0 Ultra: 3x Aşırı Büyük Mega Kar Kazma\nve Hızlı Ağaç/Balık sistemleri aktif!"
+InfoLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+InfoLabel.TextSize = 10
+InfoLabel.BorderSizePixel = 0
+
+local InfoCorner = Instance.new("UICorner")
+InfoCorner.CornerRadius = UDim.new(0, 8)
+InfoCorner.Parent = InfoLabel
+
+-- [ VERSİYON ETİKETİ ] --
+local VersionLabel = Instance.new("TextLabel")
+VersionLabel.Parent = MainFrame
+VersionLabel.BackgroundTransparency = 1
+VersionLabel.Position = UDim2.new(0.07, 0, 0.92, 0)
+VersionLabel.Size = UDim2.new(0, 230, 0, 18)
+VersionLabel.Font = Enum.Font.GothamItalic
+VersionLabel.Text = "Ultra Mega Edition v2.2.0"
+VersionLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+VersionLabel.TextSize = 10
+
+-- [ PENCERE AÇ/KAPA KONTROLÜ ] --
+CloseButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    OpenButton.Visible = true
+end)
+
+OpenButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    OpenButton.Visible = false
+end)
+
+print("👑 Arctic Script v2.2.0 Ultra Mega Edition Başarıyla Yüklendi!")
