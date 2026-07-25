@@ -1,0 +1,376 @@
+-- =====================================================================
+-- 👑 SURVIVE 7 DAYS IN ARCTIC - ULTIMATE SCRIPT v2.1.2 (FIXED HOME & FARM)
+-- =====================================================================
+-- Geliştirici: Yusuf & Gemini Ortak Çalışması
+-- =====================================================================
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- [ GÜVENLİK VE ESKİ GUI TEMİZLİĞİ ] --
+pcall(function()
+    for _, gui in pairs(CoreGui:GetChildren()) do
+        if gui.Name == "PremiumArcticHub_v212" then
+            gui:Destroy()
+        end
+    end
+end)
+
+-- [ ANA EKRAN VE ARAYÜZ (GUI) ] --
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "PremiumArcticHub_v212"
+ScreenGui.Parent = CoreGui
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.Position = UDim2.new(0.5, -125, 0.2, 0)
+MainFrame.Size = UDim2.new(0, 250, 0, 390)
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.BorderSizePixel = 0
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 12)
+MainCorner.Parent = MainFrame
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Parent = MainFrame
+MainStroke.Color = Color3.fromRGB(255, 215, 0)
+MainStroke.Thickness = 1.5
+
+-- [ BAŞLIK ] --
+local Title = Instance.new("TextLabel")
+Title.Parent = MainFrame
+Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "👑 Arctic Hub v2.1.2"
+Title.TextColor3 = Color3.fromRGB(255, 215, 0)
+Title.TextSize = 14
+Title.BorderSizePixel = 0
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 12)
+TitleCorner.Parent = Title
+
+-- [ MİNİMİZE İKONU ] --
+local OpenButton = Instance.new("TextButton")
+OpenButton.Parent = ScreenGui
+OpenButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+OpenButton.Position = UDim2.new(0.05, 0, 0.1, 0)
+OpenButton.Size = UDim2.new(0, 50, 0, 50)
+OpenButton.Font = Enum.Font.GothamBold
+OpenButton.Text = "👑"
+OpenButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+OpenButton.TextSize = 22
+OpenButton.Visible = false
+OpenButton.Active = true
+OpenButton.Draggable = true
+
+local OpenCorner = Instance.new("UICorner")
+OpenCorner.CornerRadius = UDim.new(1, 0)
+OpenCorner.Parent = OpenButton
+
+-- [ ÇARPI (KAPATMA) BUTONU ] --
+local CloseButton = Instance.new("TextButton")
+CloseButton.Parent = MainFrame
+CloseButton.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+CloseButton.Position = UDim2.new(1, -32, 0, 8)
+CloseButton.Size = UDim2.new(0, 24, 0, 24)
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 11
+CloseButton.BorderSizePixel = 0
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(1, 0)
+CloseCorner.Parent = CloseButton
+
+-- [ GELİŞTİRİLMİŞ EV / ÜS BULMA FONKSİYONU (GARANTİLİ) ] --
+local savedHomePosition = nil
+
+local function getHomePosition()
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then 
+        return nil 
+    end
+    
+    -- Eğer daha önce kaydedilmiş bir ev konumu varsa direkt onu döndür
+    if savedHomePosition then
+        return savedHomePosition
+    end
+    
+    -- Haritada ev, üs veya kamp arama
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj and obj.Name then
+            local nameLower = obj.Name:lower()
+            if nameLower:find("house") or nameLower:find("base") or nameLower:find("cabin") or nameLower:find("home") or nameLower:find("tent") or nameLower:find("shelter") or nameLower:find("camp") then
+                if obj:IsA("Model") and obj.PrimaryPart then
+                    savedHomePosition = obj.PrimaryPart.CFrame
+                    return savedHomePosition
+                elseif obj:IsA("BasePart") then
+                    savedHomePosition = obj.CFrame
+                    return savedHomePosition
+                end
+            end
+        end
+    end
+    
+    -- Bulunamazsa karakterin ilk başladığı veya şu anki güvenli yerini baz al
+    return character.HumanoidRootPart.CFrame + Vector3.new(4, 0, 4)
+end
+
+-- [ OTO FARM MOTORU (BEKLE + 5 VUR + TAŞI) ] --
+local autoFarmActive = false
+
+local function toggleAutoFarm()
+    autoFarmActive = not autoFarmActive
+    
+    task.spawn(function()
+        while autoFarmActive do
+            local character = LocalPlayer.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                local rootPart = character.HumanoidRootPart
+                local homePos = getHomePosition()
+                local targetFound = false
+                
+                for _, obj in pairs(Workspace:GetDescendants()) do
+                    if not autoFarmActive then break end
+                    
+                    if obj then
+                        local nameLower = obj.Name:lower()
+                        if nameLower:find("tree") or nameLower:find("wood") or nameLower:find("log") or nameLower:find("branch") then
+                            local targetPart = nil
+                            local targetModel = nil
+                            
+                            if obj:IsA("Model") and obj.PrimaryPart then
+                                targetPart = obj.PrimaryPart
+                                targetModel = obj
+                            elseif obj:IsA("BasePart") then
+                                targetPart = obj
+                                targetModel = obj.Parent
+                            end
+                            
+                            if targetPart and (targetPart.Position - rootPart.Position).Magnitude < 350 then
+                                targetFound = true
+                                
+                                -- 1. AŞAMA: Ağacın yanına git ve konumda durup bekle
+                                rootPart.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
+                                task.wait(0.8) -- Ağacın yanına varınca bekleme süresi
+                                
+                                -- 2. AŞAMA: Kesintisiz Tam 5 Kere Balta Vurma
+                                for hitCount = 1, 5 do
+                                    if not autoFarmActive then break end
+                                    
+                                    pcall(function()
+                                        for _, remote in pairs(ReplicatedStorage:GetDescendants()) do
+                                            if remote:IsA("RemoteEvent") then
+                                                local rName = remote.Name:lower()
+                                                if rName:find("hit") or rName:find("chop") or rName:find("wood") or rName:find("gather") or rName:find("tool") then
+                                                    remote:FireServer(targetModel)
+                                                end
+                                            end
+                                        end
+                                    end)
+                                    
+                                    task.wait(0.9) -- Her vuruş arası balta sallama payı
+                                end
+                                
+                                -- 3. AŞAMA: Evin önüne taşı ve ışınlan
+                                if targetPart and homePos then
+                                    pcall(function()
+                                        targetPart.CFrame = homePos + Vector3.new(2, 1, 2)
+                                    end)
+                                    rootPart.CFrame = homePos + Vector3.new(0, 3, 0)
+                                end
+                                
+                                task.wait(1.5)
+                                break
+                            end
+                        end
+                    end
+                end
+                
+                if not targetFound then
+                    task.wait(2)
+                end
+            end
+            task.wait(1)
+        end
+    end)
+end
+
+-- [ BUTON 1: OTO AĞAÇ FARM ] --
+local FarmButton = Instance.new("TextButton")
+FarmButton.Parent = MainFrame
+FarmButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+FarmButton.Position = UDim2.new(0.08, 0, 0.13, 0)
+FarmButton.Size = UDim2.new(0, 210, 0, 38)
+FarmButton.Font = Enum.Font.GothamBold
+FarmButton.Text = "🌲 Oto Ağaç (5 Vur & Taşı)"
+FarmButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+FarmButton.TextSize = 12
+FarmButton.BorderSizePixel = 0
+
+local BtnF = Instance.new("UICorner")
+BtnF.CornerRadius = UDim.new(0, 8)
+BtnF.Parent = FarmButton
+
+FarmButton.MouseButton1Click:Connect(function()
+    toggleAutoFarm()
+    if autoFarmActive then
+        FarmButton.Text = "🌲 Oto Farm: AÇIK ✅"
+        FarmButton.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+    else
+        FarmButton.Text = "🌲 Oto Ağaç (5 Vur & Taşı)"
+        FarmButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+    end
+end)
+
+-- [ BUTON 2: EVİME IŞINLAN (DÜZELTİLDİ) ] --
+local HomeButton = Instance.new("TextButton")
+HomeButton.Parent = MainFrame
+HomeButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+HomeButton.Position = UDim2.new(0.08, 0, 0.27, 0)
+HomeButton.Size = UDim2.new(0, 210, 0, 36)
+HomeButton.Font = Enum.Font.GothamBold
+HomeButton.Text = "🏠 Evime Işınlan"
+HomeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+HomeButton.TextSize = 13
+HomeButton.BorderSizePixel = 0
+
+local BtnH = Instance.new("UICorner")
+BtnH.CornerRadius = UDim.new(0, 8)
+BtnH.Parent = HomeButton
+
+HomeButton.MouseButton1Click:Connect(function()
+    pcall(function()
+        local character = LocalPlayer.Character
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            local homePos = getHomePosition()
+            if homePos then
+                character.HumanoidRootPart.CFrame = homePos + Vector3.new(0, 3, 0)
+            end
+        end
+    end)
+end)
+
+-- [ BUTON 3: BALIK TUTMA SÜRESİ (2 Saniye) ] --
+local FishButton = Instance.new("TextButton")
+FishButton.Parent = MainFrame
+FishButton.BackgroundColor3 = Color3.fromRGB(230, 126, 34)
+FishButton.Position = UDim2.new(0.08, 0, 0.41, 0)
+FishButton.Size = UDim2.new(0, 210, 0, 36)
+FishButton.Font = Enum.Font.GothamBold
+FishButton.Text = "🎣 Balık Süresi: 2 Saniye"
+FishButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+FishButton.TextSize = 12
+FishButton.BorderSizePixel = 0
+
+local BtnCornerFish = Instance.new("UICorner")
+BtnCornerFish.CornerRadius = UDim.new(0, 8)
+BtnCornerFish.Parent = FishButton
+
+FishButton.MouseButton1Click:Connect(function()
+    pcall(function()
+        for _, v in pairs(ReplicatedStorage:GetDescendants()) do
+            if v and (v:IsA("NumberValue") or v:IsA("IntAttribute") or v:IsA("ValueBase")) then
+                local name = v.Name:lower()
+                if name:find("fish") or name:find("time") or name:find("cooldown") or name:find("delay") or name:find("wait") then
+                    v.Value = 2
+                end
+            end
+        end
+    end)
+    FishButton.Text = "🎣 Balık Süresi: 2Sn ✅"
+end)
+
+-- [ BUTON 4: HIZLI KOŞMA ] --
+local speedEnabled = false
+local SpeedButton = Instance.new("TextButton")
+SpeedButton.Parent = MainFrame
+SpeedButton.BackgroundColor3 = Color3.fromRGB(155, 89, 182)
+SpeedButton.Position = UDim2.new(0.08, 0, 0.55, 0)
+SpeedButton.Size = UDim2.new(0, 210, 0, 36)
+SpeedButton.Font = Enum.Font.GothamBold
+SpeedButton.Text = "⚡ Hızlı Koş: KAPALI"
+SpeedButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedButton.TextSize = 13
+SpeedButton.BorderSizePixel = 0
+
+local BtnCorner2 = Instance.new("UICorner")
+BtnCorner2.CornerRadius = UDim.new(0, 8)
+BtnCorner2.Parent = SpeedButton
+
+SpeedButton.MouseButton1Click:Connect(function()
+    speedEnabled = not speedEnabled
+    if speedEnabled then
+        SpeedButton.Text = "⚡ Hızlı Koş: AÇIK"
+        SpeedButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+    else
+        SpeedButton.Text = "⚡ Hızlı Koş: KAPALI"
+        SpeedButton.BackgroundColor3 = Color3.fromRGB(155, 89, 182)
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            if speedEnabled then
+                char.Humanoid.WalkSpeed = 28
+            else
+                char.Humanoid.WalkSpeed = 16
+            end
+        end
+    end)
+end)
+
+-- [ BİLGİLENDİRME KUTUSU ] --
+local InfoLabel = Instance.new("TextLabel")
+InfoLabel.Parent = MainFrame
+InfoLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+InfoLabel.Position = UDim2.new(0.08, 0, 0.70, 0)
+InfoLabel.Size = UDim2.new(0, 210, 0, 50)
+InfoLabel.Font = Enum.Font.Gotham
+InfoLabel.Text = "v2.1.2: Ev ışınlanması ve\n5 vuruş optimizasyonu aktif!"
+InfoLabel.TextColor3 = Color3.fromRGB(210, 210, 210)
+InfoLabel.TextSize = 11
+InfoLabel.BorderSizePixel = 0
+
+local InfoCorner = Instance.new("UICorner")
+InfoCorner.CornerRadius = UDim.new(0, 8)
+InfoCorner.Parent = InfoLabel
+
+-- [ VERSİYON ETİKETİ ] --
+local VersionLabel = Instance.new("TextLabel")
+VersionLabel.Parent = MainFrame
+VersionLabel.BackgroundTransparency = 1
+VersionLabel.Position = UDim2.new(0.08, 0, 0.90, 0)
+VersionLabel.Size = UDim2.new(0, 210, 0, 20)
+VersionLabel.Font = Enum.Font.GothamItalic
+VersionLabel.Text = "Discord: v2.1.2 Kararlı"
+VersionLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+VersionLabel.TextSize = 10
+
+-- [ PENCERE KONTROLÜ ] --
+CloseButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    OpenButton.Visible = true
+end)
+
+OpenButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    OpenButton.Visible = false
+end)
+
+print("👑 Arctic Script v2.1.2 Yüklendi!")
