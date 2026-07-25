@@ -1,0 +1,207 @@
+-- ====================================================
+-- 👑 SURVIVE 7 DAYS IN ARCTIC - PREMIUM YOUTUBE SCRIPT
+-- Geliştirici: Özel Yapım
+-- Sürüm: v1.6 (Minimize Round Icon & Toggle Menu)
+-- ====================================================
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+-- [ ESKİ MENÜYÜ TEMİZLEME ] --
+for _, gui in pairs(CoreGui:GetChildren()) do
+    if gui.Name == "PremiumArcticHub" then
+        gui:Destroy()
+    end
+end
+
+-- [ ANA ARAYÜZ (GUI) OLUŞTURMA ] --
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "PremiumArcticHub"
+ScreenGui.Parent = CoreGui
+ScreenGui.ResetOnSpawn = false
+
+-- 1. ANA MENÜ ÇERÇEVESİ
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.Position = UDim2.new(0.5, -110, 0.2, 0)
+MainFrame.Size = UDim2.new(0, 220, 0, 250)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.Parent = MainFrame
+
+local Title = Instance.new("TextLabel")
+Title.Parent = MainFrame
+Title.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+Title.Size = UDim2.new(1, 0, 0, 35)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "👑 Arctic Hub v1.6"
+Title.TextColor3 = Color3.fromRGB(255, 215, 0)
+Title.TextSize = 14
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 10)
+TitleCorner.Parent = Title
+
+-- 2. YUVARLAK MİNİMİZE BUTONU (Başlangıçta Gizli, Menü kapanınca çıkacak)
+local OpenButton = Instance.new("TextButton")
+OpenButton.Name = "OpenButton"
+OpenButton.Parent = ScreenGui
+OpenButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+OpenButton.Position = UDim2.new(0.05, 0, 0.1, 0)
+OpenButton.Size = UDim2.new(0, 50, 0, 50)
+OpenButton.Font = Enum.Font.GothamBold
+OpenButton.Text = "👑"
+OpenButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+OpenButton.TextSize = 20
+OpenButton.Visible = false
+OpenButton.Active = true
+OpenButton.Draggable = true -- Yuvarlak buton da sürüklenebilir olsun
+
+local OpenCorner = Instance.new("UICorner")
+OpenCorner.CornerRadius = UDim.new(1, 0) -- Tam yuvarlak yapar
+OpenCorner.Parent = OpenButton
+
+-- 3. ÇARPI (X) KAPATMA BUTONU
+local CloseButton = Instance.new("TextButton")
+CloseButton.Parent = MainFrame
+CloseButton.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+CloseButton.Position = UDim2.new(1, -30, 0, 5)
+CloseButton.Size = UDim2.new(0, 25, 0, 25)
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 12
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(1, 0)
+CloseCorner.Parent = CloseButton
+
+-- [ HİLE AKTİFLİK DEĞİŞKENİ ]
+local scriptEnabled = true
+
+-- [ BALIK TUTMA SÜRESİ HIZLANDIRMA ] --
+pcall(function()
+    for _, v in pairs(ReplicatedStorage:GetDescendants()) do
+        if v:IsA("NumberValue") or v:IsA("IntAttribute") or v:IsA("ValueBase") then
+            local name = v.Name:lower()
+            if scriptEnabled and (name:find("fish") or name:find("time") or name:find("cooldown") or name:find("delay")) then
+                v.Value = 2
+            end
+        end
+    end
+end)
+
+-- [ AĞAÇ IŞINLANMA FONKSİYONU ] --
+local function teleportToTree()
+    if not scriptEnabled then return end
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local rootPart = character.HumanoidRootPart
+    local targetPart = nil
+    
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        local name = obj.Name:lower()
+        if name:find("tree") or name:find("wood") or name:find("log") or name:find("branch") then
+            if obj:IsA("Model") and obj.PrimaryPart then
+                targetPart = obj.PrimaryPart
+                break
+            elseif obj:IsA("BasePart") then
+                targetPart = obj
+                break
+            end
+        end
+    end
+    
+    if targetPart then
+        rootPart.CFrame = targetPart.CFrame + Vector3.new(0, 4, 0)
+        print("Ağaca başarıyla ışınlanıldı!")
+    else
+        warn("Ağaç bulunamadı!")
+    end
+end
+
+-- [ MENÜ BUTONLARI ] --
+local TeleportButton = Instance.new("TextButton")
+TeleportButton.Parent = MainFrame
+TeleportButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+TeleportButton.Position = UDim2.new(0.1, 0, 0.22, 0)
+TeleportButton.Size = UDim2.new(0, 176, 0, 36)
+TeleportButton.Font = Enum.Font.GothamBold
+TeleportButton.Text = "🌲 Ağaca Işınlan"
+TeleportButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+TeleportButton.TextSize = 14
+
+local BtnCorner1 = Instance.new("UICorner")
+BtnCorner1.CornerRadius = UDim.new(0, 6)
+BtnCorner1.Parent = TeleportButton
+
+TeleportButton.MouseButton1Click:Connect(function()
+    teleportToTree()
+end)
+
+-- [ AÇ / KAPA (TOGGLE) DURUM BUTONU ] --
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Parent = MainFrame
+ToggleButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+ToggleButton.Position = UDim2.new(0.1, 0, 0.42, 0)
+ToggleButton.Size = UDim2.new(0, 176, 0, 36)
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Text = "Durum: AÇIK ✅"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextSize = 14
+
+local BtnCorner2 = Instance.new("UICorner")
+BtnCorner2.CornerRadius = UDim.new(0, 6)
+BtnCorner2.Parent = ToggleButton
+
+ToggleButton.MouseButton1Code = Enum.UserInputType.MouseButton1
+ToggleButton.MouseButton1Click:Connect(function()
+    scriptEnabled = not scriptEnabled
+    if scriptEnabled then
+        ToggleButton.Text = "Durum: AÇIK ✅"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+    else
+        ToggleButton.Text = "Durum: KAPALI ❌"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+    end
+end)
+
+-- [ BİLGİ ETİKETİ ] --
+local InfoLabel = Instance.new("TextLabel")
+InfoLabel.Parent = MainFrame
+InfoLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+InfoLabel.Position = UDim2.new(0.1, 0, 0.64, 0)
+InfoLabel.Size = UDim2.new(0, 176, 0, 40)
+InfoLabel.Font = Enum.Font.Gotham
+InfoLabel.Text = "Çarpıya basınca yuvarlak\nbuton haline gelir."
+InfoLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+InfoLabel.TextSize = 10
+
+local InfoCorner = Instance.new("UICorner")
+InfoCorner.CornerRadius = UDim.new(0, 6)
+InfoCorner.Parent = InfoLabel
+
+-- [ ÇARPIYA BASINCA MENÜYÜ KAPATIP YUVARLAK İKONU AÇMA ] --
+CloseButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    OpenButton.Visible = true
+end)
+
+-- [ YUVARLAK İKONA BASINCA MENÜYÜ TEKRAR AÇMA ] --
+OpenButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    OpenButton.Visible = false
+end)
+
+print("👑 Arctic Script v1.6 Tamamen Yüklendi ve Hazır!")
