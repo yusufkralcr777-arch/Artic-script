@@ -1,0 +1,448 @@
+-- =====================================================================
+-- 👑 SURVIVE 7 DAYS IN ARCTIC - GROUP PRO EDITION v2.3.1 (TEREYAĞINDA)
+-- =====================================================================
+-- Balık süresi hem Değerleri hem de Attribute'leri kapsayacak şekilde 
+-- çift katmanlı ve saniyede iki kez taranarak 2 saniyeye mühürlendi!
+-- =====================================================================
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local LocalPlayer = Players.LocalPlayer
+
+-- [ 1. GÜVENLİK VE ESKİ GUI TEMİZLİĞİ ] --
+pcall(function()
+    for _, gui in pairs(CoreGui:GetChildren()) do
+        if gui.Name == "PremiumArcticHub_GroupPro" then
+            gui:Destroy()
+        end
+    end
+end)
+
+-- [ 2. ANA ARAYÜZ MİMARİSİ ] --
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "PremiumArcticHub_GroupPro"
+ScreenGui.Parent = CoreGui
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(16, 16, 16)
+MainFrame.Position = UDim2.new(0.5, -135, 0.1, 0)
+MainFrame.Size = UDim2.new(0, 270, 0, 540)
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.BorderSizePixel = 0
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 14)
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Parent = MainFrame
+MainStroke.Color = Color3.fromRGB(255, 215, 0)
+MainStroke.Thickness = 2
+
+-- BAŞLIK
+local Title = Instance.new("TextLabel")
+Title.Parent = MainFrame
+Title.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+Title.Size = UDim2.new(1, 0, 0, 45)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "👑 Arctic Hub v2.3.1 (Flawless)"
+Title.TextColor3 = Color3.fromRGB(255, 215, 0)
+Title.TextSize = 13
+Title.BorderSizePixel = 0
+Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 14)
+
+local CloseButton = Instance.new("TextButton")
+CloseButton.Parent = MainFrame
+CloseButton.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+CloseButton.Position = UDim2.new(1, -35, 0, 10)
+CloseButton.Size = UDim2.new(0, 24, 0, 24)
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.BorderSizePixel = 0
+Instance.new("UICorner", CloseButton).CornerRadius = UDim.new(1, 0)
+
+local OpenButton = Instance.new("TextButton")
+OpenButton.Parent = ScreenGui
+OpenButton.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+OpenButton.Position = UDim2.new(0.05, 0, 0.1, 0)
+OpenButton.Size = UDim2.new(0, 50, 0, 50)
+OpenButton.Font = Enum.Font.GothamBold
+OpenButton.Text = "👑"
+OpenButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+OpenButton.TextSize = 22
+OpenButton.Visible = false
+OpenButton.Active = true
+OpenButton.Draggable = true
+Instance.new("UICorner", OpenButton).CornerRadius = UDim.new(1, 0)
+
+-- BUTON KONTEYNERİ
+local Container = Instance.new("Frame", MainFrame)
+Container.Size = UDim2.new(1, 0, 1, -45)
+Container.Position = UDim2.new(0, 0, 0, 45)
+Container.BackgroundTransparency = 1
+local Layout = Instance.new("UIListLayout", Container)
+Layout.Padding = UDim.new(0, 8)
+Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+Layout.SortOrder = Enum.SortOrder.LayoutOrder
+local Padding = Instance.new("UIPadding", Container)
+Padding.PaddingTop = UDim.new(0, 10)
+
+-- [ 3. YARDIMCI FONKSİYONLAR ] --
+local function strikeTarget()
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char then
+            local tool = char:FindFirstChildOfClass("Tool")
+            if tool then tool:Activate() end
+        end
+        local x = Workspace.CurrentCamera.ViewportSize.X / 2
+        local y = Workspace.CurrentCamera.ViewportSize.Y / 2
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
+        task.wait(0.02)
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
+    end)
+end
+
+local function equipTool(keywords)
+    local char = LocalPlayer.Character
+    local bp = LocalPlayer:FindFirstChildOfClass("Backpack")
+    if not char or not bp then return false end
+    
+    for _, item in pairs(char:GetChildren()) do
+        if item:IsA("Tool") then
+            local tn = item.Name:lower()
+            for _, kw in ipairs(keywords) do
+                if tn:find(kw) then return true end
+            end
+        end
+    end
+    
+    for _, item in pairs(bp:GetChildren()) do
+        if item:IsA("Tool") then
+            local tn = item.Name:lower()
+            for _, kw in ipairs(keywords) do
+                if tn:find(kw) then
+                    item.Parent = char
+                    task.wait(0.15)
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+-- [ 4. SİSTEMLER ] --
+local autoFarmActive = false
+local function toggleAutoFarm()
+    autoFarmActive = not autoFarmActive
+    task.spawn(function()
+        while autoFarmActive do
+            pcall(function()
+                local char = LocalPlayer.Character
+                if char and char:FindFirstChild("HumanoidRootPart") then
+                    local rootPart = char.HumanoidRootPart
+                    local foundTree = false
+                    
+                    for _, obj in pairs(Workspace:GetDescendants()) do
+                        if not autoFarmActive then break end
+                        if obj and obj.Parent and (obj:IsA("Model") or obj:IsA("BasePart")) then
+                            local n = obj.Name:lower()
+                            if (n:find("tree") or n:find("pine")) and not n:find("wood") then
+                                local tPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
+                                if tPart and tPart.Parent and (tPart.Position - rootPart.Position).Magnitude < 400 then
+                                    foundTree = true
+                                    local treePos = tPart.Position
+                                    
+                                    rootPart.CFrame = tPart.CFrame * CFrame.new(0, 0, 3)
+                                    rootPart.Anchored = true
+                                    task.wait(0.1)
+                                    
+                                    local hasAxe = equipTool({"axe", "balta", "hatchet", "tool"})
+                                    if not hasAxe then rootPart.Anchored = false break end
+                                    
+                                    rootPart.CFrame = CFrame.lookAt(rootPart.Position, Vector3.new(tPart.Position.X, tPart.Position.Y, tPart.Position.Z))
+                                    
+                                    while autoFarmActive and obj and obj.Parent and tPart and tPart.Parent do
+                                        if (tPart.Position - rootPart.Position).Magnitude > 15 then break end
+                                        strikeTarget()
+                                        task.wait(0.6)
+                                    end
+                                    rootPart.Anchored = false
+                                    
+                                    if autoFarmActive then
+                                        task.wait(0.8)
+                                        for _, drop in pairs(Workspace:GetDescendants()) do
+                                            if not autoFarmActive then break end
+                                            if drop:IsA("BasePart") and not drop.Anchored then
+                                                local dn = drop.Name:lower()
+                                                if dn:find("wood") or dn:find("log") or dn:find("board") then
+                                                    if (drop.Position - treePos).Magnitude < 30 then
+                                                        rootPart.CFrame = drop.CFrame
+                                                        task.wait(0.15)
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    if not foundTree then task.wait(0.5) end
+                end
+            end)
+            task.wait(0.2)
+        end
+    end)
+end
+
+local autoDigActive = false
+local function toggleAutoDig()
+    autoDigActive = not autoDigActive
+    task.spawn(function()
+        while autoDigActive do
+            pcall(function()
+                local char = LocalPlayer.Character
+                if char and char:FindFirstChild("HumanoidRootPart") then
+                    local rootPart = char.HumanoidRootPart
+                    local snowList = {}
+                    
+                    for _, obj in pairs(Workspace:GetDescendants()) do
+                        if obj and obj.Parent and (obj:IsA("Model") or obj:IsA("BasePart")) then
+                            local n = obj.Name:lower()
+                            if n:find("snow") or n:find("dig") or n:find("kar") or n:find("ice") or n:find("mound") or n:find("pile") then
+                                local part = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
+                                if part and part.Parent and (part.Position - rootPart.Position).Magnitude < 300 then
+                                    table.insert(snowList, {obj = obj, part = part, dist = (part.Position - rootPart.Position).Magnitude})
+                                end
+                            end
+                        end
+                    end
+                    
+                    if #snowList > 0 then
+                        table.sort(snowList, function(a, b) return a.dist < b.dist end)
+                        
+                        local hasShovel = equipTool({"shovel", "kürek", "pick", "kazma", "snow"})
+                        if hasShovel then
+                            local digCount = 0
+                            for _, item in ipairs(snowList) do
+                                if not autoDigActive then break end
+                                if digCount >= 7 then break end
+                                
+                                if item.obj and item.obj.Parent and item.part and item.part.Parent then
+                                    rootPart.CFrame = item.part.CFrame * CFrame.new(0, 1.5, 2)
+                                    rootPart.Anchored = true
+                                    rootPart.CFrame = CFrame.lookAt(rootPart.Position, Vector3.new(item.part.Position.X, item.part.Position.Y, item.part.Position.Z))
+                                    task.wait(0.05)
+                                    
+                                    strikeTarget()
+                                    task.wait(0.2)
+                                    
+                                    rootPart.Anchored = false
+                                    digCount = digCount + 1
+                                end
+                            end
+                        end
+                    else
+                        task.wait(1)
+                    end
+                end
+            end)
+            task.wait(0.1)
+        end
+    end)
+end
+
+-- [ ARAYÜZ BUTON OLUŞTURUCU ] --
+local function createButton(text, color)
+    local btn = Instance.new("TextButton")
+    btn.BackgroundColor3 = color
+    btn.Size = UDim2.new(0, 240, 0, 32)
+    btn.Font = Enum.Font.GothamBold
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 12
+    btn.BorderSizePixel = 0
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    btn.Parent = Container
+    return btn
+end
+
+-- 1. OTO AĞAÇ
+local FarmBtn = createButton("🌲 Oto Ağaç (Çalışıyor)", Color3.fromRGB(46, 204, 113))
+FarmBtn.MouseButton1Click:Connect(function()
+    toggleAutoFarm()
+    FarmBtn.Text = autoFarmActive and "🌲 Oto Farm: AÇIK ✅" or "🌲 Oto Ağaç (Çalışıyor)"
+    FarmBtn.BackgroundColor3 = autoFarmActive and Color3.fromRGB(231, 76, 60) or Color3.fromRGB(46, 204, 113)
+end)
+
+-- 2. OTO KAR KAZMA
+local DigBtn = createButton("❄️ Oto Kar Kazma (7x Hızlı)", Color3.fromRGB(52, 152, 219))
+DigBtn.MouseButton1Click:Connect(function()
+    toggleAutoDig()
+    DigBtn.Text = autoDigActive and "❄️ Oto Kazma: AÇIK ✅" or "❄️ Oto Kar Kazma (7x Hızlı)"
+    DigBtn.BackgroundColor3 = autoDigActive and Color3.fromRGB(231, 76, 60) or Color3.fromRGB(52, 152, 219)
+end)
+
+-- 3. EVİ KAYDET
+local savedHomeCFrame = nil
+local SetHomeBtn = createButton("📍 Burayı Ev Olarak Kaydet", Color3.fromRGB(230, 126, 34))
+SetHomeBtn.MouseButton1Click:Connect(function()
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        savedHomeCFrame = char.HumanoidRootPart.CFrame
+        SetHomeBtn.Text = "📍 Ev Kaydedildi! ✅"
+        SetHomeBtn.BackgroundColor3 = Color3.fromRGB(39, 174, 96)
+        task.wait(1.5)
+        SetHomeBtn.Text = "📍 Burayı Ev Olarak Kaydet"
+        SetHomeBtn.BackgroundColor3 = Color3.fromRGB(230, 126, 34)
+    end
+end)
+
+-- 4. EVİME IŞINLAN
+local HomeBtn = createButton("🏠 Evime Işınlan", Color3.fromRGB(0, 170, 255))
+HomeBtn.MouseButton1Click:Connect(function()
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        if savedHomeCFrame then
+            char.HumanoidRootPart.CFrame = savedHomeCFrame + Vector3.new(0, 3, 0)
+        else
+            HomeBtn.Text = "❌ Önce Üstten Evi Kaydet!"
+            HomeBtn.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+            task.wait(1.5)
+            HomeBtn.Text = "🏠 Evime Işınlan"
+            HomeBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+        end
+    end
+end)
+
+-- 5. BALIK SÜRESİ KİLİTLİ DÖNGÜ (ÇİFT KATMANLI - FLAWLESS)
+local autoFishActive = false
+local FishBtn = createButton("🎣 Balık Süresi: Normal", Color3.fromRGB(142, 68, 173))
+FishBtn.MouseButton1Click:Connect(function()
+    autoFishActive = not autoFishActive
+    if autoFishActive then
+        FishBtn.Text = "🎣 Balık Süresi: 2Sn (KİLİTLİ) ✅"
+        FishBtn.BackgroundColor3 = Color3.fromRGB(39, 174, 96)
+        
+        task.spawn(function()
+            while autoFishActive do
+                pcall(function()
+                    local searchAreas = {ReplicatedStorage, Workspace}
+                    if LocalPlayer.Character then table.insert(searchAreas, LocalPlayer.Character) end
+                    local bp = LocalPlayer:FindFirstChildOfClass("Backpack")
+                    if bp then table.insert(searchAreas, bp) end
+                    local pg = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+                    if pg then table.insert(searchAreas, pg) end
+                    
+                    for _, area in ipairs(searchAreas) do
+                        -- 1. Değer Nesnelerini Tarama (Value Objects)
+                        for _, v in pairs(area:GetDescendants()) do
+                            if v:IsA("NumberValue") or v:IsA("IntValue") then
+                                local n = v.Name:lower()
+                                if n:find("fish") or n:find("time") or n:find("delay") or n:find("cooldown") or n:find("wait") or n:find("bite") then
+                                    if v.Value ~= 2 then 
+                                        v.Value = 2 
+                                    end
+                                end
+                            end
+                        end
+                        
+                        -- 2. Özellikleri Tarama (Attributes)
+                        local success, attrs = pcall(function() return area:GetAttributes() end)
+                        if success and attrs then
+                            for attrName, attrVal in pairs(attrs) do
+                                local an = attrName:lower()
+                                if an:find("fish") or an:find("time") or an:find("delay") or an:find("cooldown") or an:find("wait") or an:find("bite") then
+                                    if type(attrVal) == "number" and attrVal ~= 2 then
+                                        area:SetAttribute(attrName, 2)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.2) -- Tereyağından kıl çeker gibi hızlı ve sürekli tarama
+            end
+        end)
+    else
+        FishBtn.Text = "🎣 Balık Süresi: Normal"
+        FishBtn.BackgroundColor3 = Color3.fromRGB(142, 68, 173)
+    end
+end)
+
+-- 6. HIZLI KOŞ
+local speedEnabled = false
+local SpeedBtn = createButton("⚡ Hızlı Koş: KAPALI", Color3.fromRGB(155, 89, 182))
+SpeedBtn.MouseButton1Click:Connect(function()
+    speedEnabled = not speedEnabled
+    SpeedBtn.Text = speedEnabled and "⚡ Hızlı Koş: AÇIK" or "⚡ Hızlı Koş: KAPALI"
+    SpeedBtn.BackgroundColor3 = speedEnabled and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(155, 89, 182)
+end)
+
+RunService.RenderStepped:Connect(function()
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.WalkSpeed = speedEnabled and 28 or 16
+        end
+    end)
+end)
+
+-- 7. EL FENERİ
+local flashActive = false
+local FlashBtn = createButton("🔦 El Feneri: KAPALI", Color3.fromRGB(241, 196, 15))
+FlashBtn.TextColor3 = Color3.fromRGB(40,40,40)
+FlashBtn.MouseButton1Click:Connect(function()
+    flashActive = not flashActive
+    pcall(function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            if flashActive then
+                local light = Instance.new("PointLight")
+                light.Name = "ArcticFlashlightLight"
+                light.Brightness = 8
+                light.Range = 60
+                light.Color = Color3.fromRGB(255, 255, 230)
+                light.Parent = char.HumanoidRootPart
+                FlashBtn.Text = "🔦 El Feneri: AÇIK ✅"
+            else
+                local light = char.HumanoidRootPart:FindFirstChild("ArcticFlashlightLight")
+                if light then light:Destroy() end
+                FlashBtn.Text = "🔦 El Feneri: KAPALI"
+            end
+        end
+    end)
+end)
+
+-- BİLGİ KUTUSU
+local InfoLabel = Instance.new("TextLabel", Container)
+InfoLabel.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+InfoLabel.Size = UDim2.new(0, 240, 0, 50)
+InfoLabel.Font = Enum.Font.Gotham
+InfoLabel.Text = "v2.3.1: Çift Katmanlı Balık Kilidi Aktif.\nDeğerler ve Attribute'ler mühürlendi!"
+InfoLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+InfoLabel.TextSize = 10
+InfoLabel.BorderSizePixel = 0
+Instance.new("UICorner", InfoLabel).CornerRadius = UDim.new(0, 6)
+
+CloseButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    OpenButton.Visible = true
+end)
+
+OpenButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    OpenButton.Visible = false
+end)
+
+print("👑 Arctic Script v2.3.1 (FLAWLESS) Başarıyla Yüklendi!")
