@@ -1,0 +1,587 @@
+--[[
+    ===================================================================================
+    ❄️ SURVIVE 7 DAYS IN ARCTIC - ULTIMATE SURVIVAL & AUTOMATION SUITE
+    ===================================================================================
+    Sürüm: v2.5.9 Fixed Edition
+    Geliştirici: AI Collaborator & Yusuf
+    ===================================================================================
+--]]
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualUser = game:GetService("VirtualUser")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 30) or CoreGui
+
+-- Anti-AFK Kick Koruma Engine
+LocalPlayer.Idled:Connect(function()
+    VirtualUser:Button2Down(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
+    task.wait(1)
+    VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
+end)
+
+-- Eski GUI Temizleme
+pcall(function()
+    if PlayerGui:FindFirstChild("Arctic_v259_Suite") then
+        PlayerGui.Arctic_v259_Suite:Destroy()
+    end
+    if CoreGui:FindFirstChild("Arctic_v259_Suite") then
+        CoreGui.Arctic_v259_Suite:Destroy()
+    end
+end)
+
+-- SISTEM YAPILANDIRMASI
+local Config = {
+    WoodFarmEnabled = false,
+    InstantTreeTP = true,
+    ChopSpeed = 0.05,
+    SweepRadius = 45,
+    AutoBringToBase = true,
+    
+    FastFishingEnabled = false,
+    FishingDelay = 0.1,
+    
+    OreFarmEnabled = false,
+    AutoWarmth = true,
+    NoclipEnabled = true,
+    
+    TreeKeywords = {"tree", "pine", "snowtree", "woodtree", "ağaç", "spruce", "birch", "trunk"},
+    WoodKeywords = {"log", "wood", "firewood", "plank", "kütük", "odun", "lumber"},
+    BaseKeywords = {"campfire", "fire", "base", "cabin", "house", "shelter", "spawn", "ateş"},
+    FishKeywords = {"rod", "fishing", "fish", "olta", "balık"},
+    OreKeywords = {"ore", "rock", "stone", "coal", "iron", "maden", "taş"}
+}
+
+local State = {
+    TotalWoodCollected = 0,
+    TotalFishCaught = 0,
+    TotalOresMined = 0,
+    CurrentStatus = "Hazır",
+    BaseCFrame = nil,
+    LogHistory = {}
+}
+
+local function AddLog(msg)
+    local timestamp = os.date("%H:%M:%S")
+    local entry = string.format("[%s] %s", timestamp, msg)
+    table.insert(State.LogHistory, entry)
+    if #State.LogHistory > 50 then
+        table.remove(State.LogHistory, 1)
+    end
+    print("[Arctic Suite v2.5.9]: " .. msg)
+end
+
+local function GetCharacter()
+    local char = LocalPlayer.Character
+    if not char then return nil, nil, nil end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildWhichIsA("Humanoid")
+    return char, hrp, hum
+end
+
+local function ResetVelocity(hrp)
+    if hrp then
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        hrp.AssemblyAngularVelocity = Vector3.zero
+    end
+end
+
+local function InstantTP(targetCFrame)
+    local _, hrp = GetCharacter()
+    if hrp and targetCFrame then
+        ResetVelocity(hrp)
+        hrp.CFrame = targetCFrame
+        ResetVelocity(hrp)
+    end
+end
+
+-- Noclip (Duvarlardan Geçme)
+RunService.Stepped:Connect(function()
+    if Config.WoodFarmEnabled or Config.OreFarmEnabled or Config.NoclipEnabled then
+        local char = LocalPlayer.Character
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+local function GetObjectPosition(obj)
+    if not obj then return nil end
+    if obj:IsA("BasePart") then
+        return obj.Position
+    elseif obj:IsA("Model") then
+        if obj.PrimaryPart then
+            return obj.PrimaryPart.Position
+        else
+            local part = obj:FindFirstChildWhichIsA("BasePart", true)
+            if part then return part.Position end
+        end
+    end
+    return nil
+end
+
+local function TriggerInteraction(obj)
+    if not obj then return false end
+    local _, hrp = GetCharacter()
+    local success = false
+    
+    for _, prompt in pairs(obj:GetDescendants()) do
+        if prompt:IsA("ProximityPrompt") then
+            pcall(function()
+                prompt.HoldDuration = 0
+                prompt.MaxActivationDistance = 99999
+                fireproximityprompt(prompt)
+                success = true
+            end)
+        end
+    end
+    
+    for _, cd in pairs(obj:GetDescendants()) do
+        if cd:IsA("ClickDetector") then
+            pcall(function()
+                fireclickdetector(cd)
+                success = true
+            end)
+        end
+    end
+    
+    if hrp then
+        local targetPart = obj:IsA("BasePart") and obj or (obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart", true)))
+        if targetPart then
+            pcall(function()
+                firetouchinterest(hrp, targetPart, 0)
+                firetouchinterest(hrp, targetPart, 1)
+                success = true
+            end)
+        end
+    end
+    
+    return success
+end
+
+local function EquipToolByKeywords(keywords)
+    local char, _, hum = GetCharacter()
+    if not char or not hum then return nil end
+    
+    for _, item in pairs(char:GetChildren()) do
+        if item:IsA("Tool") then
+            local name = item.Name:lower()
+            for _, key in ipairs(keywords) do
+                if name:find(key) then return item end
+            end
+        end
+    end
+    
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if backpack then
+        for _, item in pairs(backpack:GetChildren()) do
+            if item:IsA("Tool") then
+                local name = item.Name:lower()
+                for _, key in ipairs(keywords) do
+                    if name:find(key) then
+                        hum:EquipTool(item)
+                        task.wait(0.1)
+                        return item
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function GetBasePosition()
+    if State.BaseCFrame then return State.BaseCFrame end
+    
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        local name = obj.Name:lower()
+        for _, key in ipairs(Config.BaseKeywords) do
+            if name:find(key) then
+                local pos = GetObjectPosition(obj)
+                if pos then
+                    State.BaseCFrame = CFrame.new(pos)
+                    return State.BaseCFrame
+                end
+            end
+        end
+    end
+    
+    local _, hrp = GetCharacter()
+    if hrp then
+        State.BaseCFrame = hrp.CFrame
+        return hrp.CFrame
+    end
+    return CFrame.new(0, 10, 0)
+end
+
+local function FindNearestTree()
+    local _, hrp = GetCharacter()
+    if not hrp then return nil end
+    
+    local nearestTree = nil
+    local minDistance = 999999
+    
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("Model") or obj:IsA("BasePart") then
+            local name = obj.Name:lower()
+            local isTree = false
+            
+            for _, key in ipairs(Config.TreeKeywords) do
+                if name:find(key) then isTree = true break end
+            end
+            
+            if isTree then
+                local pos = GetObjectPosition(obj)
+                if pos then
+                    local dist = (pos - hrp.Position).Magnitude
+                    if dist < minDistance then
+                        minDistance = dist
+                        nearestTree = {Object = obj, CFrame = CFrame.new(pos)}
+                    end
+                end
+            end
+        end
+    end
+    return nearestTree
+end
+
+-- EKSİKSİZ ODUN TAŞIMA DÖNGÜSÜ (BİRER BİRER VE HİÇBİRİNİ ATLAMADAN)
+local function TransportAllWoodOneByOne(centerPos)
+    local _, hrp = GetCharacter()
+    if not hrp or not centerPos then return 0 end
+    
+    local baseCF = GetBasePosition()
+    local processedLogs = {}
+    local logsDelivered = 0
+    local maxAttempts = 20
+    local attempt = 0
+    
+    while Config.WoodFarmEnabled and attempt < maxAttempts do
+        attempt = attempt + 1
+        local closestLog = nil
+        local minDist = Config.SweepRadius
+        
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if (obj:IsA("BasePart") or obj:IsA("Model")) and not processedLogs[obj] then
+                local name = obj.Name:lower()
+                local isWood = false
+                
+                for _, key in ipairs(Config.WoodKeywords) do
+                    if name:find(key) then isWood = true break end
+                end
+                
+                if isWood then
+                    local pos = GetObjectPosition(obj)
+                    if pos then
+                        local distFromTree = (pos - centerPos).Magnitude
+                        if distFromTree <= Config.SweepRadius then
+                            local distFromPlayer = (pos - hrp.Position).Magnitude
+                            if distFromPlayer < minDist then
+                                minDist = distFromPlayer
+                                closestLog = {Object = obj, Position = pos}
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        
+        if closestLog and Config.WoodFarmEnabled do
+            processedLogs[closestLog.Object] = true
+            
+            -- 1. Odunun Dibine Işınlan
+            InstantTP(CFrame.new(closestLog.Position + Vector3.new(0, 1.5, 0)))
+            task.wait(0.12)
+            
+            -- 2. Odunu Al / Tut
+            TriggerInteraction(closestLog.Object)
+            task.wait(0.25)
+            
+            -- 3. Eve / Ateşe Işınlan ve Bırak
+            if Config.AutoBringToBase then
+                InstantTP(baseCF + Vector3.new(0, 2.5, 0))
+                task.wait(0.15)
+                
+                for _, baseObj in pairs(Workspace:GetDescendants()) do
+                    local name = baseObj.Name:lower()
+                    for _, key in ipairs(Config.BaseKeywords) do
+                        if name:find(key) then
+                            TriggerInteraction(baseObj)
+                        end
+                    end
+                end
+                task.wait(0.15)
+            end
+            
+            logsDelivered = logsDelivered + 1
+            State.TotalWoodCollected = State.TotalWoodCollected + 1
+            AddLog("Odun Alındı ve Ateşe Getirildi! (Adet: " .. logsDelivered .. ")")
+        else
+            break
+        end
+    end
+    
+    return logsDelivered
+end
+
+-- ANA AĞAÇ FARM DÖNGÜSÜ
+local function StartWoodFarmLoop()
+    task.spawn(function()
+        AddLog("Eksiksiz Odun Taşıma Sistemli Farm Başlatıldı.")
+        
+        while Config.WoodFarmEnabled do
+            local _, hrp = GetCharacter()
+            if hrp then
+                local axe = EquipToolByKeywords({"balta", "axe", "hatchet"})
+                local tree = FindNearestTree()
+                
+                if tree then
+                    AddLog("Ağaca Işınlanıldı: " .. tree.Object.Name)
+                    InstantTP(tree.CFrame + Vector3.new(0, 2, 0))
+                    task.wait(0.1)
+                    
+                    local chopCount = 0
+                    while tree.Object and tree.Object.Parent and chopCount < 12 and Config.WoodFarmEnabled do
+                        if axe then axe:Activate() end
+                        TriggerInteraction(tree.Object)
+                        task.wait(Config.ChopSpeed)
+                        chopCount = chopCount + 1
+                    end
+                    
+                    task.wait(0.3)
+                    
+                    -- DÜZELTİLEN TAŞIMA MEKANİZMASI
+                    local delivered = TransportAllWoodOneByOne(tree.CFrame.Position)
+                    AddLog("Ağaç Temizlendi. Toplam Taşınan Odun: " .. delivered)
+                else
+                    AddLog("Yeni Ağaç Aranıyor...")
+                    task.wait(1)
+                end
+            end
+            task.wait(0.1)
+        end
+        AddLog("Odun Farmı Durduruldu.")
+    end)
+end
+
+-- HIZLI BALIK TUTMA
+local function StartFastFishingLoop()
+    task.spawn(function()
+        AddLog("Hızlı Balık Tutma (Fast Fishing) Başlatıldı.")
+        while Config.FastFishingEnabled do
+            pcall(function()
+                local rod = EquipToolByKeywords(Config.FishKeywords)
+                local char, hrp = GetCharacter()
+                if rod and char then
+                    rod:Activate()
+                    task.wait(Config.FishingDelay)
+                    for _, v in pairs(Workspace:GetDescendants()) do
+                        local name = v.Name:lower()
+                        if name:find("bobber") or name:find("hook") or name:find("fish") then
+                            TriggerInteraction(v)
+                        end
+                    end
+                    rod:Activate()
+                    State.TotalFishCaught = State.TotalFishCaught + 1
+                    AddLog("Balık Tutuldu! Toplam: " .. State.TotalFishCaught)
+                end
+            end)
+            task.wait(0.25)
+        end
+        AddLog("Balık Tutma Durduruldu.")
+    end)
+end
+
+-- HAYATTA KALMA SİSTEMİ
+local function StartSurvivalLoop()
+    task.spawn(function()
+        while true do
+            pcall(function()
+                if Config.AutoWarmth then
+                    local baseCF = GetBasePosition()
+                    local _, hrp = GetCharacter()
+                    if hrp and (hrp.Position - baseCF.Position).Magnitude > 120 then
+                        AddLog("Donma Tehlikesi! Eve / Ateşe Işınlanılıyor...")
+                        InstantTP(baseCF + Vector3.new(0, 2, 0))
+                    end
+                end
+            end)
+            task.wait(6)
+        end
+    end)
+end
+StartSurvivalLoop()
+
+-- GUI ARAYÜZÜ
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "Arctic_v259_Suite"
+ScreenGui.Parent = PlayerGui
+ScreenGui.ResetOnSpawn = false
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 22, 30)
+MainFrame.Position = UDim2.new(0.5, -175, 0.15, 0)
+MainFrame.Size = UDim2.new(0, 350, 0, 380)
+MainFrame.Active = true
+MainFrame.Draggable = true
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
+
+local MainStroke = Instance.new("UIStroke", MainFrame)
+MainStroke.Color = Color3.fromRGB(52, 152, 219)
+MainStroke.Thickness = 2
+
+local TitleBar = Instance.new("Frame")
+TitleBar.Parent = MainFrame
+TitleBar.BackgroundColor3 = Color3.fromRGB(24, 30, 42)
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 10)
+
+local TitleText = Instance.new("TextLabel")
+TitleText.Parent = TitleBar
+TitleText.BackgroundTransparency = 1
+TitleText.Position = UDim2.new(0, 12, 0, 0)
+TitleText.Size = UDim2.new(1, -24, 1, 0)
+TitleText.Font = Enum.Font.GothamBold
+TitleText.Text = "❄️ Arctic Survival Suite v2.5.9 (Fixed Edition)"
+TitleText.TextColor3 = Color3.fromRGB(52, 152, 219)
+TitleText.TextSize = 12
+TitleText.TextXAlignment = Enum.TextXAlignment.Left
+
+local StatusFrame = Instance.new("Frame")
+StatusFrame.Parent = MainFrame
+StatusFrame.BackgroundColor3 = Color3.fromRGB(25, 32, 45)
+StatusFrame.Position = UDim2.new(0, 12, 0, 50)
+StatusFrame.Size = UDim2.new(1, -24, 0, 65)
+Instance.new("UICorner", StatusFrame).CornerRadius = UDim.new(0, 8)
+
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Parent = StatusFrame
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Position = UDim2.new(0, 10, 0, 5)
+StatusLabel.Size = UDim2.new(1, -20, 1, -10)
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.Text = "Odun: 0 | Balık: 0 | Durum: Hazır\nTaşıma Modu: Tek Tek Eksiksiz Getirme (Fix)"
+StatusLabel.TextColor3 = Color3.fromRGB(230, 230, 230)
+StatusLabel.TextSize = 11
+StatusLabel.TextWrapped = true
+
+local WoodBtn = Instance.new("TextButton")
+WoodBtn.Parent = MainFrame
+WoodBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+WoodBtn.Position = UDim2.new(0, 12, 0, 125)
+WoodBtn.Size = UDim2.new(1, -24, 0, 40)
+WoodBtn.Font = Enum.Font.GothamBold
+WoodBtn.Text = "🪓 EKSİKSİZ ODUN FARM'INI BAŞLAT"
+WoodBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+WoodBtn.TextSize = 12
+Instance.new("UICorner", WoodBtn).CornerRadius = UDim.new(0, 8)
+
+local FishBtn = Instance.new("TextButton")
+FishBtn.Parent = MainFrame
+FishBtn.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
+FishBtn.Position = UDim2.new(0, 12, 0, 172)
+FishBtn.Size = UDim2.new(1, -24, 0, 40)
+FishBtn.Font = Enum.Font.GothamBold
+FishBtn.Text = "🎣 HIZLI BALIK TUTMA (FAST FISH)"
+FishBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+FishBtn.TextSize = 12
+Instance.new("UICorner", FishBtn).CornerRadius = UDim.new(0, 8)
+
+local BaseBtn = Instance.new("TextButton")
+BaseBtn.Parent = MainFrame
+BaseBtn.BackgroundColor3 = Color3.fromRGB(230, 126, 34)
+BaseBtn.Position = UDim2.new(0, 12, 0, 219)
+BaseBtn.Size = UDim2.new(1, -24, 0, 40)
+BaseBtn.Font = Enum.Font.GothamBold
+BaseBtn.Text = "🔥 EVE / ATEŞE ANINDA IŞINLAN"
+BaseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+BaseBtn.TextSize = 12
+Instance.new("UICorner", BaseBtn).CornerRadius = UDim.new(0, 8)
+
+local LogFrame = Instance.new("ScrollingFrame")
+LogFrame.Parent = MainFrame
+LogFrame.BackgroundColor3 = Color3.fromRGB(12, 15, 20)
+LogFrame.Position = UDim2.new(0, 12, 0, 266)
+LogFrame.Size = UDim2.new(1, -24, 0, 100)
+LogFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+LogFrame.ScrollBarThickness = 4
+Instance.new("UICorner", LogFrame).CornerRadius = UDim.new(0, 6)
+
+local LogLayout = Instance.new("UIListLayout")
+LogLayout.Parent = LogFrame
+LogLayout.SortOrder = Enum.SortOrder.LayoutOrder
+LogLayout.Padding = UDim.new(0, 2)
+
+local function UpdateLogUI()
+    for _, child in pairs(LogFrame:GetChildren()) do
+        if child:IsA("TextLabel") then child:Destroy() end
+    end
+    
+    for _, entry in ipairs(State.LogHistory) do
+        local lbl = Instance.new("TextLabel")
+        lbl.Parent = LogFrame
+        lbl.Size = UDim2.new(1, -8, 0, 14)
+        lbl.BackgroundTransparency = 1
+        lbl.Font = Enum.Font.Code
+        lbl.Text = entry
+        lbl.TextColor3 = Color3.fromRGB(170, 170, 170)
+        lbl.TextSize = 10
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+    end
+    
+    LogFrame.CanvasSize = UDim2.new(0, 0, 0, #State.LogHistory * 16)
+    LogFrame.CanvasPosition = Vector2.new(0, LogFrame.CanvasSize.Y.Offset)
+end
+
+task.spawn(function()
+    while true do
+        StatusLabel.Text = string.format("Odun: %d | Balık: %d\nEksiksiz Taşıma & Instant TP: Aktif", State.TotalWoodCollected, State.TotalFishCaught)
+        UpdateLogUI()
+        task.wait(0.5)
+    end
+end)
+
+WoodBtn.MouseButton1Click:Connect(function()
+    Config.WoodFarmEnabled = not Config.WoodFarmEnabled
+    if Config.WoodFarmEnabled then
+        WoodBtn.Text = "⏹️ ODUN FARM'INI DURDUR"
+        WoodBtn.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+        StartWoodFarmLoop()
+    else
+        WoodBtn.Text = "🪓 EKSİKSİZ ODUN FARM'INI BAŞLAT"
+        WoodBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+    end
+end)
+
+FishBtn.MouseButton1Click:Connect(function()
+    Config.FastFishingEnabled = not Config.FastFishingEnabled
+    if Config.FastFishingEnabled then
+        FishBtn.Text = "⏹️ BALIK TUTMAYI DURDUR"
+        FishBtn.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+        StartFastFishingLoop()
+    else
+        FishBtn.Text = "🎣 HIZLI BALIK TUTMA (FAST FISH)"
+        FishBtn.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
+    end
+end)
+
+BaseBtn.MouseButton1Click:Connect(function()
+    local baseCF = GetBasePosition()
+    InstantTP(baseCF + Vector3.new(0, 3, 0))
+    AddLog("Eve / Ateşe Işınlanıldı.")
+end)
+
+AddLog("Arctic Survival Suite v2.5.9 Hazır.")
+AddLog("Odun Taşıma Mantığı: Tek Tek Al -> Ateşe Götür -> Dön")
+UpdateLogUI()
