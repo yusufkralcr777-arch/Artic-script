@@ -1,0 +1,364 @@
+--[[
+    ===================================================================================
+    ❄️ SURVIVE 7 DAYS IN ARCTIC - FULL WOOD FARM & ALL-LOG TRANSPORT (v2.0 FIXED)
+    ===================================================================================
+    Özellik:
+    - Ağaç kesildikten sonra etrafa saçılan TÜM odunları (Log/Wood) tek tek toplar.
+    - Bölgede HİÇBİR odun kalmadığından emin olunca hepsini Eve / Ateşe getirir.
+    ===================================================================================
+--]]
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 30) or CoreGui
+
+-- Eski GUI Temizliği
+pcall(function()
+    if PlayerGui:FindFirstChild("Arctic_Wood_Farm_v2") then
+        PlayerGui.Arctic_Wood_Farm_v2:Destroy()
+    end
+end)
+
+-- AYARLAR
+local Config = {
+    FarmEnabled = false,
+    TweenSpeed = 50,           -- Güvenli uçuş/yürüyüş hızı (Kick yememek için)
+    SweepRadius = 35,          -- Ağacın etrafında odun arama yarıçapı
+    InteractionDelay = 0.15,   -- Odun alma bekleme süresi
+    
+    -- Ağaç İsimleri
+    TreeKeywords = {"tree", "pine", "snowtree", "woodtree", "ağaç"},
+    
+    -- Odun / Kütük İsimleri
+    WoodKeywords = {"log", "wood", "firewood", "plank", "kütük", "odun"},
+    
+    -- Ev / Ateş İsimleri
+    BaseKeywords = {"campfire", "fire", "base", "cabin", "house", "shelter", "spawn"}
+}
+
+local State = {
+    TotalCollected = 0,
+    Status = "Hazır",
+    BaseCFrame = nil
+}
+
+-- Güvenli Karakter Kontrolü
+local function GetCharacter()
+    local char = LocalPlayer.Character
+    if not char then return nil, nil end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    return char, hrp
+end
+
+-- Vektör Temizleyici (Anti-Cheat Bypass)
+local function ResetVelocity(hrp)
+    if hrp then
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        hrp.AssemblyAngularVelocity = Vector3.zero
+    end
+end
+
+-- Noclip (Duvarlardan Geçme)
+RunService.Stepped:Connect(function()
+    if Config.FarmEnabled then
+        local char = LocalPlayer.Character
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+-- Yumuşak Uçuş (Tween TP)
+local function SafeTween(hrp, targetPos)
+    if not hrp or not targetPos then return end
+    ResetVelocity(hrp)
+    
+    local distance = (hrp.Position - targetPos).Magnitude
+    local time = distance / Config.TweenSpeed
+    if time < 0.1 then time = 0.1 end
+    
+    local tween = TweenService:Create(hrp, TweenInfo.new(time, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetPos + Vector3.new(0, 2, 0))})
+    
+    local done = false
+    local conn = tween.Completed:Connect(function() done = true end)
+    tween:Play()
+    
+    local elapsed = 0
+    while not done and Config.FarmEnabled do
+        ResetVelocity(hrp)
+        task.wait(0.02)
+        elapsed = elapsed + 0.02
+        if elapsed > time + 2 then tween:Cancel() break end
+    end
+    
+    if conn then conn:Disconnect() end
+    ResetVelocity(hrp)
+end
+
+-- Ev / Kamp Ateşinin Konumunu Bulma
+local function FindBasePosition()
+    if State.BaseCFrame then return State.BaseCFrame.Position end
+    
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        local name = obj.Name:lower()
+        for _, key in ipairs(Config.BaseKeywords) do
+            if name:find(key) then
+                if obj:IsA("BasePart") then
+                    State.BaseCFrame = obj.CFrame
+                    return obj.Position
+                elseif obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) then
+                    local p = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+                    State.BaseCFrame = p.CFrame
+                    return p.Position
+                end
+            end
+        end
+    end
+    
+    -- Bulunamazsa Oyuncunun Başlangıç Konumunu Ev Kabul Et
+    local _, hrp = GetCharacter()
+    if hrp then
+        State.BaseCFrame = hrp.CFrame
+        return hrp.Position
+    end
+    return Vector3.new(0, 10, 0)
+end
+
+-- Nesne Etkileşimi (Balta Vurma / Odun Toplama)
+local function Interact(obj)
+    if not obj then return false end
+    local _, hrp = GetCharacter()
+    local success = false
+    
+    -- ProximityPrompt
+    for _, prompt in pairs(obj:GetDescendants()) do
+        if prompt:IsA("ProximityPrompt") then
+            pcall(function()
+                prompt.HoldDuration = 0
+                prompt.MaxActivationDistance = 99999
+                fireproximityprompt(prompt)
+                success = true
+            end)
+        end
+    end
+    
+    -- TouchTransmitter (Temas Etme)
+    if hrp then
+        local targetPart = obj:IsA("BasePart") and obj or (obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")))
+        if targetPart then
+            pcall(function()
+                firetouchinterest(hrp, targetPart, 0)
+                firetouchinterest(hrp, targetPart, 1)
+                success = true
+            end)
+        end
+    end
+    
+    return success
+end
+
+-- En Yakın Ağacı Bulma
+local function FindNearestTree()
+    local _, hrp = GetCharacter()
+    if not hrp then return nil end
+    
+    local nearest = nil
+    local minDist = 99999
+    
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("Model") or obj:IsA("BasePart") then
+            local name = obj.Name:lower()
+            local isTree = false
+            
+            for _, key in ipairs(Config.TreeKeywords) do
+                if name:find(key) then isTree = true break end
+            end
+                
+            if isTree then
+                local pos = obj:IsA("BasePart") and obj.Position or (obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")).Position)
+                if pos then
+                    local dist = (pos - hrp.Position).Magnitude
+                    if dist < minDist then
+                        minDist = dist
+                        nearest = {Object = obj, Position = pos}
+                    end
+                end
+            end
+        end
+    end
+    
+    return nearest
+end
+
+-- KESİLEN AĞACIN ETRAFINGAKİ TÜM ODUNLARI TARAMA VE TOPLAMA (DÜZELTİLEN KISIM)
+local function SweepAndCollectAllWoodNear(centerPos)
+    local _, hrp = GetCharacter()
+    if not hrp or not centerPos then return 0 end
+    
+    local collectedInThisArea = 0
+    local hasWoodLeft = true
+    
+    -- Bölgede hiç odun kalmayana kadar döngüyü sürdür
+    while hasWoodLeft and Config.FarmEnabled do
+        hasWoodLeft = false
+        local targetWood = nil
+        local closestDist = Config.SweepRadius
+        
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if obj:IsA("BasePart") or obj:IsA("Model") then
+                local name = obj.Name:lower()
+                local isWood = false
+                
+                for _, key in ipairs(Config.WoodKeywords) do
+                    if name:find(key) then isWood = true break end
+                end
+                
+                if isWood then
+                    local pos = obj:IsA("BasePart") and obj.Position or (obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")).Position)
+                    if pos then
+                        local distFromTree = (pos - centerPos).Magnitude
+                        -- Sadece ağacın düşme alanındaki odunları al
+                        if distFromTree <= Config.SweepRadius then
+                            local distFromPlayer = (pos - hrp.Position).Magnitude
+                            if distFromPlayer < closestDist then
+                                closestDist = distFromPlayer
+                                targetWood = {Object = obj, Position = pos}
+                                hasWoodLeft = true
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        
+        -- Eğer toplanacak odun bulunduysa git ve al
+        if targetWood and Config.FarmEnabled then
+            SafeTween(hrp, targetWood.Position)
+            task.wait(Config.InteractionDelay)
+            Interact(targetWood.Object)
+            collectedInThisArea = collectedInThisArea + 1
+            State.TotalCollected = State.TotalCollected + 1
+            task.wait(0.1)
+        end
+    end
+    
+    return collectedInThisArea
+end
+
+-- ANA OTOMASYON DÖNGÜSÜ
+local function StartWoodFarm()
+    task.spawn(function()
+        local basePos = FindBasePosition()
+        
+        while Config.FarmEnabled do
+            local _, hrp = GetCharacter()
+            if hrp then
+                -- 1. ADIM: Ağaç Bul
+                local tree = FindNearestTree()
+                
+                if tree then
+                    -- 2. ADIM: Ağaca Git ve Kes
+                    SafeTween(hrp, tree.Position)
+                    task.wait(0.2)
+                    Interact(tree.Object)
+                    
+                    -- Ağacın devrilmesi ve odunların saçılması için kısa bekleme
+                    task.wait(0.5)
+                    
+                    -- 3. ADIM: Yerdeki TÜM Odunları Sırayla Topla (HİÇBİRİ KALMAYANA KADAR)
+                    local collectedCount = SweepAndCollectAllWoodNear(tree.Position)
+                    
+                    -- 4. ADIM: Eğer en az 1 odun toplandıysa hepsini Eve / Ateşe Götür
+                    if collectedCount > 0 then
+                        SafeTween(hrp, basePos)
+                        task.wait(0.3)
+                        
+                        -- Ateşe/Eve Bırakma Etkileşimi
+                        for _, obj in pairs(Workspace:GetDescendants()) do
+                            local name = obj.Name:lower()
+                            for _, key in ipairs(Config.BaseKeywords) do
+                                if name:find(key) then
+                                    Interact(obj)
+                                end
+                            end
+                        end
+                    end
+                else
+                    task.wait(1)
+                end
+            end
+            task.wait(0.1)
+        end
+    end)
+end
+
+-- ARAYÜZ (GUI)
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "Arctic_Wood_Farm_v2"
+ScreenGui.Parent = PlayerGui
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
+MainFrame.Position = UDim2.new(0.5, -150, 0.2, 0)
+MainFrame.Size = UDim2.new(0, 300, 0, 160)
+MainFrame.Active = true
+MainFrame.Draggable = true
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
+
+local Title = Instance.new("TextLabel")
+Title.Parent = MainFrame
+Title.Size = UDim2.new(1, 0, 0, 35)
+Title.Text = "❄️ Arctic - Tam Odun Toplayıcı v2.0"
+Title.TextColor3 = Color3.fromRGB(52, 152, 219)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 13
+
+local InfoLabel = Instance.new("TextLabel")
+InfoLabel.Parent = MainFrame
+InfoLabel.Position = UDim2.new(0, 10, 0, 40)
+InfoLabel.Size = UDim2.new(1, -20, 0, 45)
+InfoLabel.Text = "Durum: Bekliyor\nToplanan Toplam Odun: 0"
+InfoLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+InfoLabel.Font = Enum.Font.Gotham
+InfoLabel.TextSize = 12
+
+local Btn = Instance.new("TextButton")
+Btn.Parent = MainFrame
+Btn.Position = UDim2.new(0, 10, 0, 95)
+Btn.Size = UDim2.new(1, -20, 0, 45)
+Btn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+Btn.Text = "▶ ODUN FARM'INI BAŞLAT"
+Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+Btn.Font = Enum.Font.GothamBold
+Btn.TextSize = 13
+Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 8)
+
+Btn.MouseButton1Click:Connect(function()
+    Config.FarmEnabled = not Config.FarmEnabled
+    if Config.FarmEnabled then
+        Btn.Text = "⏹️ DURDUR"
+        Btn.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+        StartWoodFarm()
+        
+        task.spawn(function()
+            while Config.FarmEnabled do
+                InfoLabel.Text = string.format("Durum: Çalışıyor 🪓\nToplanan Toplam Odun: %d", State.TotalCollected)
+                task.wait(0.5)
+            end
+        end)
+    else
+        Btn.Text = "▶ ODUN FARM'INI BAŞLAT"
+        Btn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
+        InfoLabel.Text = string.format("Durum: Durduruldu\nToplanan Toplam Odun: %d", State.TotalCollected)
+    end
+end)
